@@ -1,9 +1,10 @@
 // Premium Voice Assistant - Google Assistant Style UI
-import { sendMessage } from "@/services/chatService";
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useSpeechToText, useTextToSpeech } from '@hooks/index';
 import { logger } from '@utils/index';
+
+import { sendMessage } from '../services/chatService';
+
 
 interface Message {
   id: string;
@@ -17,22 +18,22 @@ const ChatPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const transcriptRef = useRef("");
 
   // Voice features
   const { transcript, isListening, startListening, stopListening, resetTranscript } = useSpeechToText();
   const { speak } = useTextToSpeech();
-
+  useEffect(() => {
+  transcriptRef.current = transcript;
+  console.log("Transcript:", transcript);
+}, [transcript]);
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Process voice when listening stops
-  useEffect(() => {
-    if (!isListening && transcript && !isProcessing) {
-      processVoiceCommand(transcript);
-    }
-  }, [isListening, transcript, isProcessing]);
+ ;
 
   const processVoiceCommand = async (command: string) => {
     if (!command.trim()) return;
@@ -50,23 +51,22 @@ const ChatPage: React.FC = () => {
 
     setIsProcessing(true);
 
-    try {
-      // Generate response
-      const response = generateResponse(command);
+try {
+  console.log("➡️ sending to backend:", command);
 
-      // Simulate processing
-      await new Promise((resolve) => setTimeout(resolve, 800));
+  const response = await sendMessage(command);
 
-      // Add assistant message
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-${Date.now()}`,
-          type: 'assistant',
-          text: response,
-          timestamp: new Date(),
-        },
-      ]);
+  console.log("⬅️ backend reply:", response);
+
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: `assistant-${Date.now()}`,
+      type: 'assistant',
+      text: response,
+      timestamp: new Date(),
+    },
+  ]);
 
       // Speak response
       speak(response);
@@ -78,37 +78,26 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  const generateResponse = (cmd: string): string => {
-    const text = cmd.toLowerCase();
+ 
+ const toggleMic = () => {
+  if (isListening) {
+    stopListening();
 
-    if (text.includes('weather')) {
-      return 'Currently sunny in your area with 72°F. High of 75°F tomorrow.';
-    }
-    if (text.includes('time')) {
-      return `It's ${new Date().toLocaleTimeString()}`;
-    }
-    if (text.includes('date')) {
-      return new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      });
-    }
-    if (text.includes('hello') || text.includes('hi')) {
-      return 'Hi! How can I assist you?';
-    }
+    setTimeout(() => {
+      const finalText = transcriptRef.current.trim();
 
-    return `I understood "${cmd}". I'm your AI assistant. Ask me anything!`;
-  };
-
-  const toggleMic = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      resetTranscript();
-      startListening();
-    }
-  };
+      if (finalText) {
+        processVoiceCommand(finalText);
+      } else {
+        console.log("No voice text detected");
+      }
+    }, 800);
+  } else {
+    resetTranscript();
+    transcriptRef.current = "";
+    startListening();
+  }
+};
 
   const clearChat = () => {
     setMessages([]);
@@ -252,6 +241,13 @@ const ChatPage: React.FC = () => {
                   }`}
                 >
                   <p className='text-base leading-relaxed'>{msg.text}</p>
+
+                 <button
+                 onClick={() => speak(msg.text)}
+                  className="mt-2 text-xs underline opacity-70 hover:opacity-100"
+>
+                      🔊 Read
+                  </button>
                   <p
                     className={`text-xs mt-2 ${
                       msg.type === 'user'

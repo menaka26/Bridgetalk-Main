@@ -2,8 +2,14 @@ import mongoose from "mongoose";
 
 const chatSchema = new mongoose.Schema(
   {
-    message: { type: String, required: true },
-    reply: { type: String, required: true },
+    question: {
+      type: String,
+      required: true,
+    },
+    answer: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );
